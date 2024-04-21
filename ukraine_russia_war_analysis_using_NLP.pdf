@@ -1,0 +1,520 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "CWYB-tvp3HZT"
+   },
+   "outputs": [],
+   "source": [
+    "!pip install -q snscrape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "5BZdeT_F3Jr0",
+    "outputId": "4c5c553b-e8e9-4400-e6d7-2df9b96bca47"
+   },
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "import pandas as pd\n",
+    "from datetime import date\n",
+    "import re\n",
+    "import nltk\n",
+    "import string\n",
+    "from nltk.stem import WordNetLemmatizer\n",
+    "from nltk.corpus import stopwords\n",
+    "from nltk.sentiment.vader import SentimentIntensityAnalyzer\n",
+    "nltk.download('vader_lexicon')\n",
+    "nltk.download('wordnet')\n",
+    "nltk.download('stopwords')\n",
+    "nltk.download('omw-1.4')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "TnrKWX9m3LTz",
+    "outputId": "efcac489-6030-4faa-85ab-3be24c312535"
+   },
+   "outputs": [],
+   "source": [
+    "today=date.today()\n",
+    "end_date=today\n",
+    "print(end_date)\n",
+    "search_term=\"ukraine OR russia OR ukraine war OR russia war OR russia ukraine war\"\n",
+    "max_results = 1000\n",
+    "extracted_tweets = \"snscrape --format '{content!r}'\"+ f\" --max-results {max_results} --since {end_date} twitter-search '{search_term} lang:en ' > scraped-tweets.txt\"\n",
+    "os.system(extracted_tweets)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "hOf2idJJ3M4T",
+    "outputId": "d5379917-849e-4c39-cde6-59fe9963bd2e"
+   },
+   "outputs": [],
+   "source": [
+    "df = pd.read_csv('covid19-tweets.txt', names=['Tweets'])\n",
+    "df.head(10)\n",
+    "tweets=df.to_numpy()\n",
+    "print(tweets.shape)\n",
+    "tweets= tweets.reshape(-1)\n",
+    "print(tweets.shape)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "nepwzEk13PUp"
+   },
+   "outputs": [],
+   "source": [
+    "stemmer=WordNetLemmatizer()\n",
+    "def cleaner(ndarr):\n",
+    "  tweets=ndarr.copy()\n",
+    "  pattern=r'(?i)\\b((?:[a-z][\\w-]+:(?:/{1,3}|[a-z0-9%])|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}/)(?:[^\\s()<>]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:\\'\".,<>?«»“”‘’]))';\n",
+    "  for i in range(len(tweets)):\n",
+    "      tweet=tweets[i]\n",
+    "      tweet=re.sub(pattern,\" \",str(tweet)) #urls\n",
+    "      tweet=re.sub(r\"\\W\",\" \",tweet) #special chars\n",
+    "      tweet=re.sub(re.escape(string.punctuation),\"\",tweet) #punctuation\n",
+    "      tweet=re.sub(r\"\\s+[a-zA-Z]\\s+\",\" \",tweet) #remove single char\n",
+    "      tweet=re.sub(r\"\\^[a-zA-Z]\\s+\",\" \",tweet)  #remove single char from start and end\n",
+    "      tweet=re.sub(r\"\\s+\",\" \",tweet,flags=re.I) #remove extra spaces\n",
+    "      tweet=tweet.lower()\n",
+    "      tweet=tweet.split()\n",
+    "      tweet=[stemmer.lemmatize(word) for word in tweet]\n",
+    "      tweet=[word for word in tweet if word not in stopwords.words(\"english\")]\n",
+    "\n",
+    "      tweet=\" \".join(tweet)\n",
+    "      tweets[i]=tweet\n",
+    "  return tweets"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "CdsZYi3y3SK8",
+    "outputId": "de584f02-e709-451c-9979-b1d9bac75993"
+   },
+   "outputs": [],
+   "source": [
+    "tweets=cleaner(tweets)\n",
+    "tweets=cleaner(tweets)\n",
+    "print(tweets[:5])\n",
+    "df[\"Tweets\"]=tweets\n",
+    "df[\"Tweets\"].drop_duplicates(inplace = True)\n",
+    "df.to_csv(\"clean-tweets.csv\",index=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "QeUQr96J3ULD"
+   },
+   "outputs": [],
+   "source": [
+    "from itertools import chain\n",
+    "keywords=[x.split() for x in tweets]\n",
+    "keywords = list(chain.from_iterable(keywords))\n",
+    "keywords"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 566
+    },
+    "id": "S1O3REmu3V1L",
+    "outputId": "3c93f04c-d8bd-4354-e223-940b4d5e3411"
+   },
+   "outputs": [],
+   "source": [
+    "from nltk.probability import FreqDist\n",
+    "import matplotlib.pyplot as plt; plt.rcdefaults()\n",
+    "import numpy as np\n",
+    "#import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "df2 = pd.DataFrame(keywords)\n",
+    "df2 = df2[0].value_counts()\n",
+    "\n",
+    "freq = FreqDist()\n",
+    "for words in df2:\n",
+    "    freq[words] += 1\n",
+    "\n",
+    "print(freq)\n",
+    "\n",
+    "df2 = df2[:30,]\n",
+    "plt.figure(figsize=(10,5))\n",
+    "sns.barplot(df2.values, df2.index, alpha=0.8)\n",
+    "plt.title('Top Words Overall')\n",
+    "plt.ylabel('Word from Tweet', fontsize=12)\n",
+    "plt.xlabel('Count of Words', fontsize=12)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "UWKdUpEx3Xw7"
+   },
+   "outputs": [],
+   "source": [
+    "from textblob import TextBlob\n",
+    "def classfier(x):\n",
+    "  if(x>0):\n",
+    "    return \"Positive\"\n",
+    "  elif (x==0):\n",
+    "    return \"Neutral\"\n",
+    "  else:\n",
+    "    return \"Negative\"\n",
+    "df[\"polarity\"]=df[\"Tweets\"].apply(lambda x :TextBlob(x).sentiment[0])\n",
+    "df[\"Subjectivity\"]=df[\"Tweets\"].apply(lambda x :TextBlob(x).sentiment[1])\n",
+    "df[\"Lenght\"]=df[\"Tweets\"].apply(lambda x : len(x.split()))\n",
+    "# df[\"class\"]=df[\"polarity\"].apply(lambda x:  \"POSITIVE\" if x > 0 else \"NEGATIVE\" )\n",
+    "df[\"class\"]=df[\"polarity\"].apply(lambda x:  classfier(x))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 676
+    },
+    "id": "DmYyWuqm3Zu0",
+    "outputId": "4c4eb3b7-0c1e-4cb7-c212-0c5992480874"
+   },
+   "outputs": [],
+   "source": [
+    "df.head(20)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "bMn7orgR3cNT"
+   },
+   "outputs": [],
+   "source": [
+    "def percentage(part,whole):\n",
+    " return 100 * float(part)/float(whole)\n",
+    "\n",
+    "noOfTweet = len(tweets)\n",
+    "positive = 0\n",
+    "negative = 0\n",
+    "neutral = 0\n",
+    "neutral_list = []\n",
+    "negative_list = []\n",
+    "positive_list = []\n",
+    "for tweet in tweets:\n",
+    " score = SentimentIntensityAnalyzer().polarity_scores(tweet)\n",
+    " neg = score[\"neg\"]\n",
+    " neu = score[\"neu\"]\n",
+    " pos = score[\"pos\"]\n",
+    " comp = score[\"compound\"]\n",
+    " \n",
+    " if neg > pos:\n",
+    "  negative_list.append(tweet)\n",
+    "  negative += 1\n",
+    " elif pos > neg:\n",
+    "  positive_list.append(tweet)\n",
+    "  positive += 1\n",
+    " elif pos == neg:\n",
+    "  neutral_list.append(tweet)\n",
+    "  neutral += 1\n",
+    "\n",
+    "positive = percentage(positive, noOfTweet)\n",
+    "negative = percentage(negative, noOfTweet)\n",
+    "neutral = percentage(neutral, noOfTweet)\n",
+    "positive = format(positive, \".1f\")\n",
+    "negative = format(negative, \".1f\")\n",
+    "neutral = format(neutral, \".1f\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "JlKqG-9L3eWK",
+    "outputId": "c97ba357-cb39-472f-a228-337c569c1d86"
+   },
+   "outputs": [],
+   "source": [
+    "neutral_list = pd.DataFrame(neutral_list)\n",
+    "negative_list = pd.DataFrame(negative_list)\n",
+    "positive_list = pd.DataFrame(positive_list)\n",
+    "print(\"total number: \",len(df[\"Tweets\"]))\n",
+    "print(\"positive number: \",len(positive_list))\n",
+    "print(\"negative number: \", len(negative_list))\n",
+    "print(\"neutral number: \",len(neutral_list))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 406
+    },
+    "id": "Fp5BCbQZ3gcC",
+    "outputId": "5e9eab5e-5abb-4318-ae9c-d8bdaba02059"
+   },
+   "outputs": [],
+   "source": [
+    "colors = sns.color_palette('pastel')[0:5]\n",
+    "plt.pie([len(positive_list),len(negative_list),len(neutral_list)], labels = [\"Positive sentiments\",\"Negative sentiments\",\"Neutral sentiments\"], colors = colors, autopct='%.0f%%')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 518
+    },
+    "id": "idqIm-LU3ipK",
+    "outputId": "a2e7b72c-36a5-4752-f77b-173facd58848"
+   },
+   "outputs": [],
+   "source": [
+    "sns.set_theme(style=\"ticks\", color_codes=True)\n",
+    "sns.displot(data=df, x=\"Lenght\",hue=\"class\",col=\"class\", palette=\"dark\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 576
+    },
+    "id": "DJLxHqXR3ksL",
+    "outputId": "648aed13-a636-4e92-e077-d0495f3e44ee"
+   },
+   "outputs": [],
+   "source": [
+    "from wordcloud import WordCloud\n",
+    "\n",
+    "\n",
+    "# Generate a word cloud image\n",
+    "Tweets_String=str(df[\"Tweets\"])\n",
+    "\n",
+    "wordcloudimage = WordCloud(\n",
+    "                          max_words=100,\n",
+    "                          max_font_size=500,\n",
+    "                          font_step=2,\n",
+    "  \n",
+    "                          background_color='white',\n",
+    "                          width=1000,\n",
+    "                          height=720\n",
+    "                          ).generate(Tweets_String)\n",
+    " \n",
+    "plt.figure(figsize=(15,7))\n",
+    "plt.axis(\"off\")\n",
+    "plt.imshow(wordcloudimage)\n",
+    "wordcloudimage\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "SD1fZV4z3o5z"
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.ensemble import RandomForestClassifier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "qYZNowVZ3q5D",
+    "outputId": "a2530c2c-aa9a-451a-c662-c082f6fe9a11"
+   },
+   "outputs": [],
+   "source": [
+    "df.columns"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "On9SLF033sfL"
+   },
+   "outputs": [],
+   "source": [
+    "target=df[\"class\"]\n",
+    "df2=df.copy()\n",
+    "del df2[\"Tweets\"]\n",
+    "del df2[\"class\"]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/",
+     "height": 423
+    },
+    "id": "EOLKMl_J3uX7",
+    "outputId": "67d22d41-3623-430c-fdd9-59b335739edc"
+   },
+   "outputs": [],
+   "source": [
+    "df2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "5c2bLzOc3wMr"
+   },
+   "outputs": [],
+   "source": [
+    "data_train, data_test, target_train, target_test=train_test_split(df2,target,test_size=0.3)\n",
+    "clf = RandomForestClassifier().fit(data_train,target_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "e45PSyZ13yvb",
+    "outputId": "7ab75ff7-9800-4bf2-8bb0-16278c706cd7"
+   },
+   "outputs": [],
+   "source": [
+    "clf.score(data_test,target_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "id": "aq2988Ac31ZL"
+   },
+   "outputs": [],
+   "source": [
+    "data_train2, data_test2, target_train2, target_test2=train_test_split(df2,target,test_size=0.2)\n",
+    "clf2 = RandomForestClassifier().fit(data_train2,target_train2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "22q2hiRH33lT",
+    "outputId": "9aa63c61-ee64-4e6f-9834-a8cff5ac1f7c"
+   },
+   "outputs": [],
+   "source": [
+    "clf2.score(data_test2,target_test2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "colab": {
+     "base_uri": "https://localhost:8080/"
+    },
+    "id": "YRAIUyR935u9",
+    "outputId": "ac1f6e86-ff18-42f5-c0f7-d80be92b288a"
+   },
+   "outputs": [],
+   "source": [
+    "from sklearn.model_selection import KFold\n",
+    "df3=df2.to_numpy()\n",
+    "kf = KFold(n_splits=10)\n",
+    "kf.get_n_splits(df3)\n",
+    "\n",
+    "print(kf)\n",
+    "for train_index, test_index in kf.split(df3):\n",
+    "    X_train, X_test = df3[train_index], df3[test_index]\n",
+    "    y_train, y_test = target[train_index], target[test_index]\n",
+    "\n",
+    "clf3 = RandomForestClassifier().fit(X_train,y_train)\n",
+    "clf3.score(X_test,y_test)"
+   ]
+  }
+ ],
+ "metadata": {
+  "colab": {
+   "authorship_tag": "ABX9TyMtSTKNvGIkgrVHBaTnS9SP",
+   "provenance": []
+  },
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
