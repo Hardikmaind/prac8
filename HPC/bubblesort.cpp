@@ -68,5 +68,7 @@ bool sortedCorrectly = is_sorted(sequentialData.begin(), sequentialData.end());
     cout << "Parallel Bubble Sort Time: " << parTime << " seconds\n";
     cout << "Sorting Correctly: " << (sortedCorrectly ? "Yes" : "No") << endl;
 
+    
+
     return 0;
 }

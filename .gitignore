@@ -1,4 +1,5 @@
-/myenv
+/env
 *.exe
 *.pyc
 *.ipynb_checkpoints
+*.vscode
