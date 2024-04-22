@@ -79,11 +79,14 @@ int main() {
 
     // Perform parallel BFS and DFS
     clock_t startParBFS = clock();
+    cout<<"this is parallel BFS\n";
     g.parallelBFS(0);
+    cout<<endl;
     clock_t endParBFS = clock();
     double parBFSTime = double(endParBFS - startParBFS) / CLOCKS_PER_SEC;
 
     clock_t startParDFS = clock();
+    cout<<"this is parallel DFS\n";
     g.parallelDFS(0);
     clock_t endParDFS = clock();
     double parDFSTime = double(endParDFS - startParDFS) / CLOCKS_PER_SEC;
