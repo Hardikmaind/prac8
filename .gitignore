@@ -1,4 +1,4 @@
-/env
+/myenv
 *.exe
 *.pyc
 *.ipynb_checkpoints
