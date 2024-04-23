@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -18,6 +25,20 @@ public:
     // Function to add an edge to the graph
     void addEdge(int u, int v) {
         adj[u].push_back(v);
+    }
+
+    // Function to take graph input from user
+    void inputGraph() {
+        int edges;
+        cout << "Enter the number of edges: ";
+        cin >> edges;
+
+        cout << "Enter edges (u v):" << endl;
+        for (int i = 0; i < edges; ++i) {
+            int u, v;
+            cin >> u >> v;
+            addEdge(u, v);
+        }
     }
 
     // Parallel Breadth-First Search (BFS)
@@ -68,25 +89,24 @@ public:
 };
 
 int main() {
+    int vertices;
+    cout << "Enter the number of vertices: ";
+    cin >> vertices;
+
     // Create a graph
-    Graph g(7);
-    g.addEdge(0, 1);
-    g.addEdge(0, 2);
-    g.addEdge(1, 3);
-    g.addEdge(1, 4);
-    g.addEdge(2, 5);
-    g.addEdge(2, 6);
+    Graph g(vertices);
+    g.inputGraph();
 
     // Perform parallel BFS and DFS
     clock_t startParBFS = clock();
-    cout<<"this is parallel BFS\n";
+    cout << "this is parallel BFS\n";
     g.parallelBFS(0);
-    cout<<endl;
+    cout << endl;
     clock_t endParBFS = clock();
     double parBFSTime = double(endParBFS - startParBFS) / CLOCKS_PER_SEC;
 
     clock_t startParDFS = clock();
-    cout<<"this is parallel DFS\n";
+    cout << "this is parallel DFS\n";
     g.parallelDFS(0);
     clock_t endParDFS = clock();
     double parDFSTime = double(endParDFS - startParDFS) / CLOCKS_PER_SEC;
