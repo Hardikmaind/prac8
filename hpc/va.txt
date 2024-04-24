@@ -8,96 +8,83 @@ pip install nvcc4jupyter
 
 
 
-
 %%cuda
-#include <stdio.h>
 #include <iostream>
+#include <cuda_runtime.h>
 
 using namespace std;
 
-// CUDA code to multiply matrices
-__global__ void multiply(int* A, int* B, int* C, int size) {
-    // Uses thread idices and block indices to compute each element
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+__global__
+void add(int* A, int* B, int* C, int size) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (row < size && col < size) {
-        int sum = 0;
-        for (int i = 0; i < size; i++) {
-            sum += A[row * size + i] * B[i * size + col];
-        }
-        C[row * size + col] = sum;
+    if (tid < size) {
+        C[tid] = A[tid] + B[tid];
     }
 }
 
-void initialize(int* matrix, int size) {
-    for (int i = 0; i < size * size; i++) {
-        matrix[i] = rand() % 10;
+void initialize(int* vector, int size, int values[]) {
+    for (int i = 0; i < size; i++) {
+        vector[i] = values[i];
     }
 }
 
-void print(int* matrix, int size) {
-    for (int row = 0; row < size; row++) {
-        for (int col = 0; col < size; col++) {
-            cout << matrix[row * size + col] << " ";
-        }
-        cout << '\n';
+void print(int* vector, int size) {
+    for (int i = 0; i < size; i++) {
+        cout << vector[i] << " ";
     }
-    cout << '\n';
+    cout << endl;
 }
 
 int main() {
+    int N = 4;
     int* A, * B, * C;
 
-    int N = 2;
-    int blockSize = 16;
+    int vectorSize = N;
+    size_t vectorBytes = vectorSize * sizeof(int);
 
-    int matrixSize = N * N;
-    size_t matrixBytes = matrixSize * sizeof(int);
+    A = new int[vectorSize];
+    B = new int[vectorSize];
+    C = new int[vectorSize];
 
-    A = new int[matrixSize];
-    B = new int[matrixSize];
-    C = new int[matrixSize];
+    int valuesA[] = {3, 6, 7, 5};
+    int valuesB[] = {3, 5, 6, 2};
 
-    initialize(A, N);
-    initialize(B, N);
-    cout << "Matrix A: \n";
+    initialize(A, vectorSize, valuesA);
+    initialize(B, vectorSize, valuesB);
+
+    cout << "Vector A: ";
     print(A, N);
-
-    cout << "Matrix B: \n";
+    cout << "Vector B: ";
     print(B, N);
 
     int* X, * Y, * Z;
-    // Allocate space
-    cudaMalloc(&X, matrixBytes);
-    cudaMalloc(&Y, matrixBytes);
-    cudaMalloc(&Z, matrixBytes);
+    cudaMalloc(&X, vectorBytes);
+    cudaMalloc(&Y, vectorBytes);
+    cudaMalloc(&Z, vectorBytes);
 
-    // Initialize matrix C to zero
-    cudaMemset(Z, 0, matrixBytes);
+    cudaMemcpy(X, A, vectorBytes, cudaMemcpyHostToDevice);
+    cudaMemcpy(Y, B, vectorBytes, cudaMemcpyHostToDevice);
 
-    // Copy values from A to X
-    cudaMemcpy(X, A, matrixBytes, cudaMemcpyHostToDevice);
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
 
-    // Copy values from A to X and B to Y
-    cudaMemcpy(Y, B, matrixBytes, cudaMemcpyHostToDevice);
+    add<<<blocksPerGrid, threadsPerBlock>>>(X, Y, Z, N);
 
-    // Threads per CTA dimension
-    int THREADS = 2;
+    cudaError_t cudaError = cudaGetLastError();
+    if (cudaError != cudaSuccess) {
+        cout << "CUDA Error: " << cudaGetErrorString(cudaError) << endl;
+        return 1;
+    }
 
-    // Blocks per grid dimension
-    int BLOCKS = (N + THREADS - 1) / THREADS;
+    cudaMemcpy(C, Z, vectorBytes, cudaMemcpyDeviceToHost);
 
-    // Use dim3 structs for block and grid dimensions
-    dim3 threads(THREADS, THREADS);
-    dim3 blocks(BLOCKS, BLOCKS);
-
-    // Launch kernel
-    multiply<<<blocks, threads>>>(X, Y, Z, N);
-
-    cudaMemcpy(C, Z, matrixBytes, cudaMemcpyDeviceToHost);
-    cout << "Multiplication of matrix A and B: \n";
+    cout << "Addition: ";
     print(C, N);
+
+    for (int i = 0; i < 4; i++) {
+        printf("%d + %d = %d\n", A[i], B[i], C[i]);
+    }
 
     delete[] A;
     delete[] B;
