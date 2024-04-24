@@ -1,4 +1,4 @@
-pip install nvcc4jupyter
+!pip install nvcc4jupyter
 
 
 %load_ext nvcc4jupyter
