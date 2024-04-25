@@ -96,3 +96,103 @@ int main() {
 
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%cuda
+#include <iostream>
+
+using namespace std;
+
+__global__ void add(int* A, int* B, int* C, int size) {
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    if (i < size) {
+        C[i] = A[i] + B[i];
+    }
+}
+
+int main() {
+    const int N = 256;
+    int *arra, *arrb, *arrc;
+
+    cudaMallocManaged(&arra, N * sizeof(int));
+    cudaMallocManaged(&arrb, N * sizeof(int));
+    cudaMallocManaged(&arrc, N * sizeof(int));
+
+    // Initialize arrays
+    for (int i = 0; i < N; i++) {
+        arra[i] = i;
+        arrb[i] = 256 - i;
+    }
+
+    add << <1, 256 >> > (arra, arrb, arrc, N);
+    cudaDeviceSynchronize();
+
+
+    cout << " vector A:" << endl;
+    for (int i = 0; i < N; i++) {
+        cout << arra[i] << " ";
+    }
+    cout << endl;
+
+
+    cout << " vector B:" << endl;
+    for (int i = 0; i < N; i++) {
+        cout << arrb[i] << " ";
+    }
+    cout << endl;
+
+    cout << "Added vector:" << endl;
+    for (int i = 0; i < N; i++) {
+        cout << arrc[i] << " ";
+    }
+    cout << endl;
+
+    cudaFree(arra);
+    cudaFree(arrb);
+    cudaFree(arrc);
+
+    return 0;
+}
+
