@@ -167,59 +167,87 @@ int main() {
 
 
 
+
+
 %%cuda
 #include <iostream>
-
 using namespace std;
 
-__global__ void add(int* A, int* B, int* C, int size) {
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    if (i < size) {
-        C[i] = A[i] * B[i];
+const int N = 3; // Size of square matrices
+
+// CUDA kernel to multiply matrices
+__global__ void mul(int* A, int* B, int* C, int size) {
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < size && col < size) {
+        int sum = 0;
+        for (int i = 0; i < size; i++) {
+            sum += A[row * size + i] * B[i * size + col];
+        }
+        C[row * size + col] = sum;
     }
 }
 
 int main() {
-    const int N = 256;
-    int *arra, *arrb, *arrc;
+    int *h_A, *h_B, *h_C; // Host matrices
 
-    cudaMallocManaged(&arra, N * sizeof(int));
-    cudaMallocManaged(&arrb, N * sizeof(int));
-    cudaMallocManaged(&arrc, N * sizeof(int));
+    // Allocate memory and initialize host matrices
+    cudaMallocManaged(&h_A, N * N * sizeof(int));
+    cudaMallocManaged(&h_B, N * N * sizeof(int));
+    cudaMallocManaged(&h_C, N * N * sizeof(int));
 
-    // Initialize arrays
-    for (int i = 0; i < N; i++) {
-        arra[i] = i;
-        arrb[i] = 256 - i;
+    // Initialize host matrices
+    for (int i = 0; i < N * N; i++) {
+        h_A[i] = i;
+        h_B[i] = 2 * i;
     }
 
-    add << <1, 256 >> > (arra, arrb, arrc, N);
+    // Define grid and block dimensions
+    dim3 dimGrid(1, 1, 1);
+    dim3 dimBlock(N, N, 1);
+
+    // Launch kernel
+    mul<<<dimGrid, dimBlock>>>(h_A, h_B, h_C, N);
     cudaDeviceSynchronize();
 
 
-    cout << " vector A:" << endl;
+
+
+     cout << " matrix A:" << endl;
     for (int i = 0; i < N; i++) {
-        cout << arra[i] << " ";
+        for (int j = 0; j < N; j++) {
+            cout << h_A[i * N + j] << " ";
+        }
+        cout << endl;
     }
-    cout << endl;
 
 
-    cout << " vector B:" << endl;
+
+     cout << " matrix B:" << endl;
     for (int i = 0; i < N; i++) {
-        cout << arrb[i] << " ";
+        for (int j = 0; j < N; j++) {
+            cout << h_B[i * N + j] << " ";
+        }
+        cout << endl;
     }
-    cout << endl;
 
-    cout << "Multiplied vector:" << endl;
+
+
+
+    // Print result
+    cout << "Result matrix:" << endl;
     for (int i = 0; i < N; i++) {
-        cout << arrc[i] << " ";
+        for (int j = 0; j < N; j++) {
+            cout << h_C[i * N + j] << " ";
+        }
+        cout << endl;
     }
-    cout << endl;
 
-    cudaFree(arra);
-    cudaFree(arrb);
-    cudaFree(arrc);
+    // Free memory
+    cudaFree(h_A);
+    cudaFree(h_B);
+    cudaFree(h_C);
 
     return 0;
 }
-
